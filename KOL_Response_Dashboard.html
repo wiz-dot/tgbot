@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>KOL 响应看板</title>
+<style>
+/* 浅色为主，深色跟随系统。
+   配色经 CVD / 对比度验证：
+   分类三色 浅 #0ca30c/#2a78d6/#d03b3b、深 #28ab28/#3987e5/#e66767，两两可区分。 */
+:root{
+  --bg:#f7f8fa;
+  --surface:#fff;
+  --surface-2:#fafbfc;
+  --border:#e6e9ed;
+  --border-soft:#eef1f4;
+  --ink:#14171a;
+  --ink-2:#424c56;
+  --ink-3:#6b757f;
+  --ink-4:#a2abb4;
+  --accent:#2a78d6;
+  --track:#edf0f3;
+  --c1:#0ca30c; --c2:#2a78d6; --c3:#d03b3b;
+  --f1:#147a1c; --f2:#43ab4c; --f3:#7ac47f;
+  --s1:#e89a9a; --s2:#d35f5f; --s3:#a81e1e;
+  --ok:#0ca30c; --warning:#b07d00; --serious:#d1773f; --critical:#d03b3b;
+  --critical-bg:#fdeceb;
+  --shadow:0 1px 2px rgba(16,24,40,.05), 0 6px 16px -10px rgba(16,24,40,.14);
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1216;
+    --surface:#171b20;
+    --surface-2:#1c2127;
+    --border:#272d35;
+    --border-soft:#20262d;
+    --ink:#eaeef2;
+    --ink-2:#b4bec8;
+    --ink-3:#8b95a0;
+    --ink-4:#646e79;
+    --accent:#3987e5;
+    --track:#242a31;
+    --c1:#28ab28; --c2:#3987e5; --c3:#e66767;
+    --ok:#28ab28; --warning:#d4a73f; --serious:#e08d5a; --critical:#e66767;
+    --f1:#6fd07a; --f2:#3fa54a; --f3:#2f7a3a;
+    --s1:#9e3c3c; --s2:#cf5f5f; --s3:#f09090;
+    --critical-bg:#3a2321;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -14px rgba(0,0,0,.6);
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;padding:0 20px 56px;background:var(--bg);color:var(--ink);
+ font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+ "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+ -webkit-font-smoothing:antialiased}
+.wrap{max-width:1160px;margin:0 auto}
+
+/* ---------- 页头 ---------- */
+header{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:flex-end;
+ justify-content:space-between;padding:30px 0 18px}
+.title h1{font-size:23px;margin:0;letter-spacing:-.5px;font-weight:700}
+.title p{margin:6px 0 0;color:var(--ink-3);font-size:13px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--border);
+ border-radius:9px;padding:3px;gap:2px;box-shadow:var(--shadow)}
+.seg a{padding:6px 14px;font-size:13px;color:var(--ink-2);text-decoration:none;
+ border-radius:6px;transition:background .15s,color .15s;white-space:nowrap}
+.seg a:hover{color:var(--ink);background:var(--surface-2)}
+.seg a.on{background:var(--accent);color:#fff;font-weight:600}
+
+/* ---------- 布局 ---------- */
+.grid{display:grid;gap:16px;grid-template-columns:repeat(2,minmax(0,1fr));
+ margin-bottom:16px}
+.grid--one{grid-template-columns:1fr}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+.panel{background:var(--surface);border:1px solid var(--border);
+ border-radius:var(--radius);padding:22px 24px 24px;box-shadow:var(--shadow);
+ min-width:0}
+.panel h2{font-size:15.5px;margin:0 0 18px;letter-spacing:-.2px;font-weight:660;
+ display:flex;align-items:center;gap:10px}
+.kicker{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--ink-3);
+ background:var(--track);border-radius:999px;padding:2px 9px}
+.panel h3{font-size:13px;margin:24px 0 14px;color:var(--ink-2);font-weight:620;
+ display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+ letter-spacing:.2px}
+.panel h3:first-of-type{margin-top:0}
+.hint{color:var(--ink-3);font-weight:500;letter-spacing:0;font-size:12.5px}
+.note{color:var(--ink-3);font-size:12.5px;margin:16px 0 0;line-height:1.75;
+ padding-top:14px;border-top:1px solid var(--border-soft)}
+
+/* ---------- KPI ---------- */
+.tiles{display:grid;gap:14px;margin-bottom:16px;
+ grid-template-columns:repeat(auto-fit,minmax(176px,1fr))}
+.tile{background:var(--surface);border:1px solid var(--border);
+ border-radius:var(--radius);padding:17px 19px 15px;box-shadow:var(--shadow);
+ display:flex;flex-direction:column;min-height:118px}
+.tile__label{color:var(--ink-2);font-size:12.5px;letter-spacing:.2px;font-weight:500}
+.tile__value{font-size:33px;font-weight:700;letter-spacing:-1.2px;margin-top:5px;
+ font-variant-numeric:tabular-nums;line-height:1.1}
+.tile__note{color:var(--ink-3);font-size:12px;margin-top:5px;line-height:1.5}
+.tile__spark{margin:auto -4px -6px auto}
+.tile--ok .tile__value{color:var(--ok)}
+.tile--warning .tile__value{color:var(--warning)}
+.tile--serious .tile__value{color:var(--serious)}
+.tile--critical .tile__value{color:var(--critical)}
+.spark{display:block;overflow:visible}
+.spark-area{fill:var(--accent);opacity:.1}
+.spark-line{fill:none;stroke:var(--accent);stroke-width:1.6;
+ stroke-linecap:round;stroke-linejoin:round}
+.spark-dot{fill:var(--accent);stroke:var(--surface);stroke-width:1.4}
+.spark--ok .spark-area{fill:var(--ok)} .spark--ok .spark-line{stroke:var(--ok)}
+.spark--ok .spark-dot{fill:var(--ok)}
+.spark--warning .spark-area{fill:var(--warning)}
+.spark--warning .spark-line{stroke:var(--warning)}
+.spark--warning .spark-dot{fill:var(--warning)}
+.spark--serious .spark-area{fill:var(--serious)}
+.spark--serious .spark-line{stroke:var(--serious)}
+.spark--serious .spark-dot{fill:var(--serious)}
+.spark--critical .spark-area{fill:var(--critical)}
+.spark--critical .spark-line{stroke:var(--critical)}
+.spark--critical .spark-dot{fill:var(--critical)}
+
+/* ---------- 环形图 ---------- */
+.donut{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.dn-arc{transition:opacity .15s}
+.donut:hover .dn-arc{opacity:.45}
+.donut .dn-arc:hover{opacity:1}
+.dn-num{text-anchor:middle;font-size:32px;font-weight:700;fill:var(--ink);
+ font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.dn-lab{text-anchor:middle;font-size:12px;fill:var(--ink-3)}
+.legend{list-style:none;margin:0;padding:0;flex:1;min-width:186px}
+.legend li{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:13.5px;
+ border-bottom:1px solid var(--border-soft)}
+.legend li:last-child{border-bottom:none}
+.dot{width:11px;height:11px;border-radius:3px;flex:none}
+.lg-name{color:var(--ink);font-weight:500}
+.lg-val{margin-left:auto;color:var(--ink-3);font-size:12.5px;
+ font-variant-numeric:tabular-nums;white-space:nowrap;display:flex;gap:8px}
+.lg-val b{color:var(--ink);font-weight:650}
+.lg-pct{min-width:34px;text-align:right}
+
+/* ---------- 图表 ---------- */
+/* 坐标轴文字是 HTML，字号不受 SVG 缩放影响；只有线条和面积走 SVG。 */
+.ch{display:grid;grid-template-columns:auto minmax(0,1fr);
+ grid-template-rows:var(--plot-h,170px) auto;column-gap:12px;margin-top:4px}
+.ch-y{position:relative;width:auto;min-width:30px}
+.ch-ytick{position:absolute;right:0;transform:translateY(-50%);white-space:nowrap;
+ font-size:13px;font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums;
+ letter-spacing:-.1px}
+.ch-plot{position:relative;border-bottom:1px solid var(--border)}
+.ch-x{grid-column:2;position:relative;height:26px}
+.ch-xtick{position:absolute;top:8px;transform:translateX(-50%);white-space:nowrap;
+ font-size:13px;font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.ch-grid{position:absolute;left:0;right:0;height:1px;background:var(--border)}
+.ch-grid:last-of-type{background:var(--border)}
+.ch-bar{position:absolute;bottom:0;transform:translateX(-50%);
+ width:var(--w,26px);background:var(--accent);border-radius:4px 4px 0 0;
+ transition:filter .15s;box-shadow:0 0 0 2px var(--surface)}
+.ch-bar:hover{filter:brightness(1.12) saturate(1.1)}
+.ch-bar--ok{background:var(--ok)} .ch-bar--warning{background:var(--warning)}
+.ch-bar--serious{background:var(--serious)} .ch-bar--critical{background:var(--critical)}
+.ch-bar--f1{background:var(--f1)} .ch-bar--f2{background:var(--f2)}
+.ch-bar--f3{background:var(--f3)}
+.ch-bar--s1{background:var(--s1)} .ch-bar--s2{background:var(--s2)}
+.ch-bar--s3{background:var(--s3)}
+.ch-val{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+ margin-bottom:6px;font-size:13px;font-weight:680;color:var(--ink);
+ white-space:nowrap;font-variant-numeric:tabular-nums}
+.ch-null{position:absolute;bottom:2px;transform:translateX(-50%);width:3px;height:3px;
+ border-radius:50%;background:var(--ink-4)}
+.ch-div{position:absolute;top:-6px;bottom:0;width:0;
+ border-left:1px dashed var(--ink-4)}
+.ch-div-lab{position:absolute;top:-6px;transform:translateX(7px);font-size:12.5px;
+ font-weight:600;color:var(--ink-2);white-space:nowrap}
+.ch-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.area{fill:var(--accent);opacity:.16;stroke:none}
+.line{fill:none;stroke:var(--accent);stroke-width:2.8;stroke-linejoin:round;
+ stroke-linecap:round;vector-effect:non-scaling-stroke}
+.ch-dot{position:absolute;width:9px;height:9px;border-radius:50%;
+ background:var(--accent);transform:translate(-50%,-50%);
+ box-shadow:0 0 0 2px var(--surface)}
+.split{display:flex;justify-content:space-between;gap:12px;margin-top:16px;
+ padding-top:14px;border-top:1px solid var(--border-soft);
+ font-size:12.5px;color:var(--ink-3)}
+.split b{color:var(--ink);font-weight:680;font-size:14px;margin-right:5px}
+.split i{font-style:normal;color:var(--ink-3);margin:0 5px}
+.split-l b{color:var(--f1)} .split-r b{color:var(--s3)}
+
+/* ---------- 棒棒糖排行 ---------- */
+.pops{display:flex;flex-direction:column;gap:3px}
+.pop{display:grid;grid-template-columns:minmax(86px,1fr) minmax(0,2.1fr) minmax(82px,auto);
+ gap:14px;align-items:center;padding:7px 8px;margin:0 -8px;border-radius:8px;
+ transition:background .12s}
+.pop:hover{background:var(--surface-2)}
+.pop-label{font-size:13px;color:var(--ink);overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap}
+.pop-track{position:relative;height:16px}
+.pop-track::before{content:"";position:absolute;left:0;right:0;top:50%;
+ height:2px;transform:translateY(-50%);border-radius:2px;background:var(--track)}
+.pop-stem{position:absolute;left:0;top:50%;height:4px;transform:translateY(-50%);
+ background:var(--accent);border-radius:3px;opacity:.9}
+.pop-dot{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;
+ background:var(--accent);transform:translate(-50%,-50%);
+ box-shadow:0 0 0 3px var(--surface)}
+.pop--ok .pop-stem,.pop--ok .pop-dot{background:var(--ok)}
+.pop--warning .pop-stem,.pop--warning .pop-dot{background:var(--warning)}
+.pop--serious .pop-stem,.pop--serious .pop-dot{background:var(--serious)}
+.pop--critical .pop-stem,.pop--critical .pop-dot{background:var(--critical)}
+.pop-value{text-align:right;font-size:13px;font-weight:600;color:var(--ink);
+ font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ---------- 表格 ---------- */
+.table-wrap{overflow-x:auto;margin:0 -4px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{text-align:left;color:var(--ink-2);font-weight:650;font-size:12.5px;
+ padding:0 12px 10px;border-bottom:1px solid var(--border);white-space:nowrap;
+ letter-spacing:.3px}
+td{padding:12px 12px;border-bottom:1px solid var(--border-soft);white-space:nowrap;
+ font-variant-numeric:tabular-nums}
+tbody tr{transition:background .12s}
+tbody tr:hover td{background:var(--surface-2)}
+tr:last-child td{border-bottom:none}
+.chip{display:inline-block;min-width:22px;text-align:center;padding:1px 8px;
+ border-radius:999px;font-size:11.5px;font-weight:600;
+ background:var(--critical-bg);color:var(--critical)}
+.grade{display:inline-block;min-width:23px;text-align:center;padding:1px 8px;
+ border-radius:6px;font-size:11.5px;font-weight:700;letter-spacing:.3px;
+ background:var(--track);color:var(--ink-2)}
+.grade--S{background:var(--critical);color:#fff}
+.grade--A{background:var(--track);color:var(--ink)}
+.muted{color:var(--ink-3);font-weight:400}
+.empty{color:var(--ink-3);font-size:13px;margin:6px 0 0}
+
+/* ---------- 口径说明 ---------- */
+.spec{background:var(--surface);border:1px solid var(--border);
+ border-radius:var(--radius);margin-bottom:16px;box-shadow:var(--shadow)}
+.spec>summary{padding:17px 22px;cursor:pointer;font-size:14px;font-weight:650;
+ display:flex;gap:10px;align-items:baseline;list-style:none}
+.spec>summary::-webkit-details-marker{display:none}
+.spec>summary::before{content:"";width:0;height:0;align-self:center;
+ border:4.5px solid transparent;border-left-color:var(--ink-3);
+ transition:transform .15s}
+.spec[open]>summary::before{transform:rotate(90deg) translateX(-1px)}
+.spec-body{padding:0 22px 22px;border-top:1px solid var(--border-soft)}
+.spec-body h4{font-size:12.5px;margin:22px 0 10px;color:var(--ink);
+ letter-spacing:.2px}
+table.sp{border-collapse:collapse;width:100%;font-size:12.5px;line-height:1.8}
+table.sp td{padding:10px 12px;border-bottom:1px solid var(--border-soft);
+ vertical-align:top;white-space:normal}
+table.sp tbody tr:hover td{background:transparent}
+table.sp tr:last-child td{border-bottom:none}
+td.sp-k{width:178px;color:var(--ink);font-weight:650}
+.spec b{font-weight:650}
+footer{color:var(--ink-3);font-size:12px;text-align:center;margin-top:26px;
+ line-height:1.9;padding-top:20px;border-top:1px solid var(--border)}
+@media (max-width:560px){
+  body{padding:0 14px 40px}
+  header{padding:22px 0 14px}
+  .pop{grid-template-columns:minmax(66px,1fr) minmax(0,1.4fr) minmax(64px,auto);gap:9px}
+  .donut{justify-content:center;gap:18px}
+  td.sp-k{width:auto}
+  .tile__value{font-size:26px}
+}
+
+/* Refined editorial dashboard */
+:root{color-scheme:light;--bg:#f2f3f1;--surface:#fff;--surface-2:#f7f8f6;--border:#e1e5e1;--border-soft:#edf0ec;--ink:#182522;--ink-2:#4a5953;--ink-3:#748078;--ink-4:#a2aba5;--accent:#657f73;--track:#edf1ed;--c1:#467e68;--c2:#8d9fad;--c3:#c77760;--f1:#3b735f;--f2:#71a08a;--f3:#abc6b7;--s1:#e4bbab;--s2:#ce937c;--s3:#ad604a;--ok:#39795f;--warning:#aa8240;--serious:#b47850;--critical:#b4624e;--critical-bg:#f7ece6;--shadow:0 3px 16px -9px rgba(23,42,31,.09);--radius:18px}
+body{background:var(--bg);padding:0 36px 48px;font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px}
+.wrap{max-width:1440px}
+header{position:relative;background:#172a24;color:#fff;margin:0 -36px 28px;padding:44px 44px 34px;border-radius:0 0 24px 24px;align-items:center;gap:26px;overflow:hidden;border-bottom:3px solid #c8b478}
+header:after{content:"";position:absolute;right:-80px;top:-170px;width:480px;height:480px;border:1px solid #ffffff0c;border-radius:50%;pointer-events:none;box-shadow:0 0 0 60px #ffffff03,0 0 0 120px #ffffff02}
+.title,.controls{position:relative;z-index:1}.brandline{display:flex;gap:12px;align-items:center;margin-bottom:22px;font-size:10px;letter-spacing:2.3px;color:#b7c6bf;font-weight:550}.brandline b{color:#e0ca80;font-size:15px;letter-spacing:1.2px}.brandline i{height:13px;width:1px;background:#697b72}
+.title h1{font-size:32px;font-weight:620;letter-spacing:1px;line-height:1.35}.title p{font-size:11px;color:#aabbb1;margin-top:14px;letter-spacing:.2px}
+.controls{gap:10px}.seg{background:#ffffff08;border:1px solid #ffffff18;box-shadow:none;border-radius:10px;padding:4px}.seg a{color:#b6c6bd;font-size:12px;padding:7px 14px;border-radius:7px}.seg a.on{background:#d8c48a;color:#233229;box-shadow:0 2px 6px #00000012}.seg a:hover{background:#ffffff16;color:#fff}.seg a.on:hover{background:#e4d5a4;color:#233229}
+.tiles{gap:14px;margin-bottom:26px;grid-template-columns:repeat(6,minmax(0,1fr))}.tile{position:relative;padding:22px 20px 18px;min-height:172px;box-shadow:none;border-color:#e1e6df;overflow:hidden}.tile:first-child{background:#e8ede7;border-color:#d4ded3}.tile:before{content:"";width:24px;height:3px;background:#b4c4b5;position:absolute;left:20px;top:0}.tile--critical:before{background:var(--critical)}.tile__label{font-size:11px;color:#607066;letter-spacing:.7px;font-weight:600}.tile__value{font-size:32px;font-weight:600;letter-spacing:-1.3px;margin:13px 0 9px;white-space:nowrap}.tile__note{font-size:11px;color:#7b867e}.tile__spark{opacity:.8;margin-top:10px}.spark-line{stroke-width:1.8}
+.grid{gap:22px;margin-bottom:22px}.panel{padding:28px 28px 24px;border-color:#e2e7e0;box-shadow:var(--shadow)}.panel h2{font-size:16px;font-weight:620;margin-bottom:28px;letter-spacing:.2px}.section-index{font-size:10px;color:#8d9a91;letter-spacing:1px;font-weight:500;border-right:1px solid #dce3dc;padding-right:12px;margin-right:2px}.panel h3{font-size:12px;margin-top:28px;margin-bottom:20px}.kicker{background:#eff2ed;color:#7b897e;font-size:10px;padding:3px 9px}.hint{font-size:11px;font-weight:400}.note{font-size:11px;line-height:1.9;margin-top:22px;padding-top:16px}.donut{gap:30px;padding:7px 0 14px}.dn-num{font-weight:550;letter-spacing:-1.3px}.legend li{padding:13px 0;font-size:12px}.dot{width:8px;height:8px;border-radius:50%}.lg-val{font-size:11px}.lg-val b{font-size:14px;font-weight:600}.ch-ytick,.ch-xtick{font-size:11px;color:#859087;font-weight:400}.ch-grid{background:#eef1ed}.ch-bar{border-radius:5px 5px 0 0;box-shadow:none;max-width:36px}.ch-val{font-size:11px;font-weight:600;color:#506157}.line{stroke-width:2.4}.area{opacity:.08}.ch-dot{width:7px;height:7px}.split{font-size:11px;padding-top:18px;margin-top:20px}.split b{font-size:14px}.pop{padding:10px 8px;gap:18px}.pop-label{font-size:12px}.pop-value{font-size:12px}.pop-stem{height:3px}.pop-dot{width:9px;height:9px}.pop-track:before{height:1px}.table-wrap{border:1px solid #edf0eb;border-radius:10px;margin:0}table{font-size:12px}th{background:#f4f6f2;padding:13px 14px;color:#7b897e;font-size:10px;font-weight:600;letter-spacing:.5px;border-bottom:1px solid #e7ece4}td{padding:15px 14px;color:#405247}td:first-child{font-weight:550;color:#24382b}tbody tr:nth-child(even){background:#fcfdfb}.chip{font-size:10px;padding:2px 8px}.grade{font-size:10px;border-radius:4px}.grade--S{background:#243e31;color:#e3d29d}.spec{box-shadow:none;margin-top:26px;border-color:#dfe5dd;background:#f8f9f6}.spec>summary{font-size:12px;padding:19px 24px;color:#617065}.spec-body{background:#fff;border-radius:0 0 18px 18px}.spec-body h4{font-size:12px}footer{font-size:10px;letter-spacing:.4px;color:#8b968d;padding:24px 0 0;margin-top:34px}
+@media(min-width:1500px){header{margin-left:0;margin-right:0;margin-top:24px;border-radius:22px;padding:42px}}
+@media(max-width:1200px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.tile{min-height:152px}.tile__value{font-size:32px}}
+@media(max-width:900px){body{padding:0 24px 32px}header{margin:0 -24px 24px;padding:32px 28px}.grid{gap:18px}.panel{padding:24px}.controls{width:100%}}
+@media(max-width:560px){body{padding:0 16px 30px}header{margin:0 -16px 20px;padding:28px 22px;border-radius:0 0 18px 18px}.title h1{font-size:27px}.brandline{font-size:8px;letter-spacing:1.4px}.title p{line-height:1.8}.tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tile{padding:18px 14px;min-height:144px}.tile__value{font-size:25px;letter-spacing:-1px}.tile__note{font-size:10px}.panel{padding:22px 18px}.panel h2{font-size:15px}.section-index{padding-right:8px}.seg a{padding:6px 12px}.donut{gap:16px}.pop{gap:10px}.panel h3{flex-wrap:wrap}.hint{font-size:10px}}
+@media print{body{background:white;padding:0}header{margin:0 0 16px;padding:24px;background:#172a24!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}.controls{display:none}.tile,.panel{break-inside:avoid;box-shadow:none}.tiles{grid-template-columns:repeat(3,1fr)}*{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+
+:root{color-scheme:dark;--bg:#0c0d0f;--surface:#17181b;--surface-2:#202125;--border:#303034;--border-soft:#29292d;--ink:#f4f0e7;--ink-2:#c5c1b8;--ink-3:#9e9a91;--ink-4:#77756e;--accent:#d4b56c;--track:#2b2b2d;--c1:#d4b56c;--c2:#939ea9;--c3:#d77c69;--f1:#d9bb78;--f2:#ad945e;--f3:#796b4f;--s1:#bd917c;--s2:#c67963;--s3:#ed9980;--ok:#d4b56c;--warning:#dfc38b;--serious:#d49a73;--critical:#e48b77;--critical-bg:#392724;--shadow:0 8px 28px -15px #0009;--radius:16px}
+body{background:radial-gradient(ellipse at 80% 0%,#29231866,transparent 35%),#0c0d0f;color:var(--ink)}
+header{background:linear-gradient(115deg,#18191c 5%,#25221b 100%);border:1px solid #39342a;border-bottom:2px solid #b99b57;color:#f7f0dd}.brandline{color:#aca38f}.brandline b{color:#e5c575}.brandline i{background:#655941}.title p{color:#a49f94}.title h1{font-weight:580;letter-spacing:1.5px}.seg{background:#0e0f1180;border-color:#484238}.seg a{color:#b3ac9d}.seg a.on{background:linear-gradient(135deg,#e6cb8d,#b99850);color:#211b0e}.seg a.on:hover{background:#e5c980;color:#211b0e}
+.tile{background:linear-gradient(145deg,#1d1e21,#16171a);border-color:#313134;box-shadow:0 8px 24px -18px #000}.tile:first-child{background:linear-gradient(125deg,#342d1f,#201e19);border-color:#6a5834}.tile:before{background:#bda161}.tile--critical:before{background:#d78570}.tile__label{color:#b1ac9e}.tile__value{color:#eee7d8}.tile:first-child .tile__value{color:#edd59b}.tile--ok .tile__value{color:#ddc181}.tile--critical .tile__value{color:#e99783}.tile__note{color:#9c988e}.tile__spark{opacity:.9}.panel{background:#17181b;border-color:#303033}.section-index{color:#c1a66b;border-color:#484033}.panel h2{color:#eae3d5}.kicker{background:#302b21;color:#cbb887}.panel h3{color:#c8c1b3}.ch-ytick,.ch-xtick{color:#aaa396}.ch-grid{background:#303034}.ch-val{color:#d3c9b6}.ch-bar{opacity:.95}.area{opacity:.12}.legend li{border-color:#2b2b2d}.lg-name,.lg-val b{color:#e7dfcf}.split{border-color:#303033}.split b{color:#d6b979}.split-r b{color:#e89a83}.pop-label,.pop-value{color:#dcd5c7}.pop:hover{background:#202125}.table-wrap{border-color:#303034}th{background:#242321;color:#bcb29d;border-color:#39362f}td{color:#c4beb1;border-color:#2b2b2e}td:first-child{color:#ece3d0}tbody tr:nth-child(even){background:#1b1c1f}tbody tr:hover td{background:#26251f}.grade{background:#302d25;color:#d8c798}.grade--S{background:#c8a95e;color:#19160e}.grade--A{background:#3a3322;color:#e5ca87}.spec{background:#141517;border-color:#303033}.spec>summary{color:#bdb4a1}.spec-body{background:#17181b}.spec-body h4{color:#e6dcc9}footer{color:#938b7a;border-color:#343129}.table-wrap::-webkit-scrollbar{height:6px}.table-wrap::-webkit-scrollbar-thumb{background:#665a3d;border-radius:6px}a:focus-visible,summary:focus-visible{outline:2px solid #d4b56c;outline-offset:4px}
+@media print{header{background:#191919!important}}
+
+</style>
+</head><body><div class="wrap">
+<header>
+  <div class="title"><div class="brandline"><b>WEEX</b><i></i><span>KOL OPERATIONS / RESPONSE ANALYTICS</span></div>
+    <h1>KOL 响应看板</h1>
+    <p>最近 21 天 · 更新于 10-06 22:58（UTC+8）· 静态快照 · 数据截至 2026-10-06 16:56</p>
+  </div>
+  <div class="controls"><div class="seg"><a href="按天.html" class="on">天</a><a href="按周.html">周</a><a href="按月.html">月</a></div><div class="seg"><a href="按天.html" class="on">可信样本</a><a href="按天-全部样本.html">全部样本</a></div></div>
+</header>
+<div class="tiles"><div class="tile"><div class="tile__label">问题总数</div><div class="tile__value">50</div><div class="tile__note">11 位 KOL · 9 个群</div><div class="tile__spark"><svg class="spark" viewBox="0 0 104 30" width="104" height="30" aria-hidden="true"><polygon class="spark-area" points="3.0,30 3.0,27.0 9.5,27.0 16.1,22.2 22.6,17.4 29.1,17.4 35.7,27.0 42.2,27.0 48.7,12.6 55.3,12.6 61.8,3.0 68.3,7.8 74.9,7.8 81.4,17.4 87.9,7.8 94.5,12.6 101.0,22.2 101.0,30"/><polyline class="spark-line" points="3.0,27.0 9.5,27.0 16.1,22.2 22.6,17.4 29.1,17.4 35.7,27.0 42.2,27.0 48.7,12.6 55.3,12.6 61.8,3.0 68.3,7.8 74.9,7.8 81.4,17.4 87.9,7.8 94.5,12.6 101.0,22.2"/><circle class="spark-dot" cx="101.0" cy="22.2" r="2.6"/></svg></div></div><div class="tile tile--ok"><div class="tile__label">被响应中位</div><div class="tile__value">6.2 分钟</div><div class="tile__note">最慢的 10% 超过 8.9 小时</div><div class="tile__spark"><svg class="spark spark--ok" viewBox="0 0 104 30" width="104" height="30" aria-hidden="true"><polygon class="spark-area" points="3.0,30 3.0,27.0 9.5,26.9 16.1,27.0 22.6,20.2 29.1,27.0 35.7,3.0 42.2,26.0 48.7,26.4 55.3,26.9 61.8,26.7 68.3,26.8 74.9,26.7 81.4,23.1 87.9,26.6 94.5,26.9 101.0,24.8 101.0,30"/><polyline class="spark-line" points="3.0,27.0 9.5,26.9 16.1,27.0 22.6,20.2 29.1,27.0 35.7,3.0 42.2,26.0 48.7,26.4 55.3,26.9 61.8,26.7 68.3,26.8 74.9,26.7 81.4,23.1 87.9,26.6 94.5,26.9 101.0,24.8"/><circle class="spark-dot" cx="101.0" cy="24.8" r="2.6"/></svg></div></div><div class="tile"><div class="tile__label">30 分钟内被响应</div><div class="tile__value">75%</div><div class="tile__note">运营、BD、客服任一接住即算</div><div class="tile__spark"><svg class="spark spark--ok" viewBox="0 0 104 30" width="104" height="30" aria-hidden="true"><polygon class="spark-area" points="3.0,30 3.0,3.0 9.5,3.0 16.1,3.0 22.6,19.1 29.1,3.0 35.7,27.0 42.2,3.0 48.7,3.0 55.3,9.0 61.8,10.9 68.3,9.0 74.9,3.0 81.4,27.0 87.9,3.0 94.5,3.0 101.0,27.0 101.0,30"/><polyline class="spark-line" points="3.0,3.0 9.5,3.0 16.1,3.0 22.6,19.1 29.1,3.0 35.7,27.0 42.2,3.0 48.7,3.0 55.3,9.0 61.8,10.9 68.3,9.0 74.9,3.0 81.4,27.0 87.9,3.0 94.5,3.0 101.0,27.0"/><circle class="spark-dot" cx="101.0" cy="27.0" r="2.6"/></svg></div></div><div class="tile tile--ok"><div class="tile__label">运营跟进中位</div><div class="tile__value">13 分钟</div><div class="tile__note">30 分钟内 67%（只看运营）</div></div><div class="tile"><div class="tile__label">响应率</div><div class="tile__value">80%</div><div class="tile__note">无人响应 10 条</div></div><div class="tile"><div class="tile__label">触发预警</div><div class="tile__value">10</div><div class="tile__note">其中 1 条之后被回复</div></div></div><div class="grid"><section class="panel"><h2><span class="section-index">01</span>响应构成</h2><div class="donut"><svg viewBox="0 0 180 180" width="180" height="180" role="img"><circle cx="90.0" cy="90.0" r="66" fill="none" stroke="var(--track)" stroke-width="18"/><circle class="dn-arc" cx="90.0" cy="90.0" r="66" fill="none" stroke="var(--c1)" stroke-width="18" stroke-linecap="butt" stroke-dasharray="246.31 168.38" stroke-dashoffset="-0.00" transform="rotate(-90 90.0 90.0)"><title>运营回复：30 条</title></circle><circle class="dn-arc" cx="90.0" cy="90.0" r="66" fill="none" stroke="var(--c2)" stroke-width="18" stroke-linecap="butt" stroke-dasharray="80.44 334.25" stroke-dashoffset="-248.81" transform="rotate(-90 90.0 90.0)"><title>仅客服 / BD 回复：10 条</title></circle><circle class="dn-arc" cx="90.0" cy="90.0" r="66" fill="none" stroke="var(--c3)" stroke-width="18" stroke-linecap="butt" stroke-dasharray="80.44 334.25" stroke-dashoffset="-331.75" transform="rotate(-90 90.0 90.0)"><title>无人响应：10 条</title></circle><text x="90.0" y="88.0" class="dn-num">50</text><text x="90.0" y="110.0" class="dn-lab">个问题</text></svg><ul class="legend"><li><span class="dot" style="background:var(--c1)"></span><span class="lg-name">运营回复</span><span class="lg-val"><b>30</b> 条<span class="lg-pct">60%</span></span></li><li><span class="dot" style="background:var(--c2)"></span><span class="lg-name">仅客服 / BD 回复</span><span class="lg-val"><b>10</b> 条<span class="lg-pct">20%</span></span></li><li><span class="dot" style="background:var(--c3)"></span><span class="lg-name">无人响应</span><span class="lg-val"><b>10</b> 条<span class="lg-pct">20%</span></span></li></ul></div><p class="note">「仅客服 / BD 回复」= 客服当场接住了，但运营一直没出面跟进。</p></section><section class="panel"><h2><span class="section-index">02</span>被响应时长分布</h2><div class="ch" style="--plot-h:190px"><div class="ch-y"><span class="ch-ytick" style="top:100.000%">0</span><span class="ch-ytick" style="top:75.000%">5</span><span class="ch-ytick" style="top:50.000%">10</span><span class="ch-ytick" style="top:25.000%">15</span><span class="ch-ytick" style="top:0.000%">20</span></div><div class="ch-plot"><i class="ch-grid" style="top:100.000%"></i><i class="ch-grid" style="top:75.000%"></i><i class="ch-grid" style="top:50.000%"></i><i class="ch-grid" style="top:25.000%"></i><i class="ch-grid" style="top:0.000%"></i><i class="ch-div" style="left:50.000%"></i><b class="ch-div-lab" style="left:50.000%">30 分钟</b><span class="ch-bar ch-bar--f3" style="left:8.333%;height:25.000%;--w:46.0px" title="&lt;1分：5 条"><b class="ch-val">5 条</b></span><span class="ch-bar ch-bar--f2" style="left:25.000%;height:65.000%;--w:46.0px" title="1-5分：13 条"><b class="ch-val">13 条</b></span><span class="ch-bar ch-bar--f1" style="left:41.667%;height:60.000%;--w:46.0px" title="5-30分：12 条"><b class="ch-val">12 条</b></span><span class="ch-bar ch-bar--s1" style="left:58.333%;height:15.000%;--w:46.0px" title="30-60分：3 条"><b class="ch-val">3 条</b></span><span class="ch-bar ch-bar--s2" style="left:75.000%;height:10.000%;--w:46.0px" title="1-6时：2 条"><b class="ch-val">2 条</b></span><span class="ch-bar ch-bar--s3" style="left:91.667%;height:25.000%;--w:46.0px" title="&gt;6时：5 条"><b class="ch-val">5 条</b></span></div><div class="ch-x"><span class="ch-xtick" style="left:8.333%">&lt;1分</span><span class="ch-xtick" style="left:25.000%">1-5分</span><span class="ch-xtick" style="left:41.667%">5-30分</span><span class="ch-xtick" style="left:58.333%">30-60分</span><span class="ch-xtick" style="left:75.000%">1-6时</span><span class="ch-xtick" style="left:91.667%">&gt;6时</span></div></div><div class="split"><span class="split-l"><b>30</b> 条在 30 分钟内<i>75%</i></span><span class="split-r"><i>25%</i><b>10</b> 条超过 30 分钟</span></div><p class="note">从 KOL 发问到我方任何人第一次回应。看分布比看平均值可靠——少数拖很久的会把平均值整个带偏。</p></section></div><div class="grid grid--one"><section class="panel panel--wide"><h2><span class="section-index">03</span>趋势<span class="kicker">按天</span></h2><h3>每期问题数<span class="hint">红色 = 当期有问题没人响应</span></h3><div class="ch" style="--plot-h:176px"><div class="ch-y"><span class="ch-ytick" style="top:100.000%">0</span><span class="ch-ytick" style="top:80.000%">2</span><span class="ch-ytick" style="top:60.000%">4</span><span class="ch-ytick" style="top:40.000%">6</span><span class="ch-ytick" style="top:20.000%">8</span><span class="ch-ytick" style="top:0.000%">10</span></div><div class="ch-plot"><i class="ch-grid" style="top:100.000%"></i><i class="ch-grid" style="top:80.000%"></i><i class="ch-grid" style="top:60.000%"></i><i class="ch-grid" style="top:40.000%"></i><i class="ch-grid" style="top:20.000%"></i><i class="ch-grid" style="top:0.000%"></i><span class="ch-bar" style="left:3.125%;height:10.000%;--w:26.0px" title="09/18：1 条"></span><span class="ch-bar" style="left:9.375%;height:10.000%;--w:26.0px" title="09/20：1 条"></span><span class="ch-bar" style="left:15.625%;height:20.000%;--w:26.0px" title="09/21：2 条"></span><span class="ch-bar" style="left:21.875%;height:30.000%;--w:26.0px" title="09/22：3 条"></span><span class="ch-bar" style="left:28.125%;height:30.000%;--w:26.0px" title="09/24：3 条"></span><span class="ch-bar" style="left:34.375%;height:10.000%;--w:26.0px" title="09/25：1 条"></span><span class="ch-bar" style="left:40.625%;height:10.000%;--w:26.0px" title="09/26：1 条"></span><span class="ch-bar ch-bar--critical" style="left:46.875%;height:40.000%;--w:26.0px" title="09/28：4 条"></span><span class="ch-bar" style="left:53.125%;height:40.000%;--w:26.0px" title="09/29：4 条"></span><span class="ch-bar ch-bar--critical" style="left:59.375%;height:60.000%;--w:26.0px" title="09/30：6 条"></span><span class="ch-bar ch-bar--critical" style="left:65.625%;height:50.000%;--w:26.0px" title="10/01：5 条"></span><span class="ch-bar ch-bar--critical" style="left:71.875%;height:50.000%;--w:26.0px" title="10/02：5 条"></span><span class="ch-bar" style="left:78.125%;height:30.000%;--w:26.0px" title="10/03：3 条"></span><span class="ch-bar ch-bar--critical" style="left:84.375%;height:50.000%;--w:26.0px" title="10/04：5 条"></span><span class="ch-bar ch-bar--critical" style="left:90.625%;height:40.000%;--w:26.0px" title="10/05：4 条"></span><span class="ch-bar ch-bar--critical" style="left:96.875%;height:20.000%;--w:26.0px" title="10/06：2 条"></span></div><div class="ch-x"><span class="ch-xtick" style="left:3.125%">09/18</span><span class="ch-xtick" style="left:21.875%">09/22</span><span class="ch-xtick" style="left:40.625%">09/26</span><span class="ch-xtick" style="left:59.375%">09/30</span><span class="ch-xtick" style="left:78.125%">10/03</span><span class="ch-xtick" style="left:96.875%">10/06</span></div></div><h3>30 分钟内被响应率<span class="hint">刻度固定 0–100%，不同时间段可直接比</span></h3><div class="ch" style="--plot-h:176px"><div class="ch-y"><span class="ch-ytick" style="top:100.000%">0%</span><span class="ch-ytick" style="top:75.000%">25%</span><span class="ch-ytick" style="top:50.000%">50%</span><span class="ch-ytick" style="top:25.000%">75%</span><span class="ch-ytick" style="top:0.000%">100%</span></div><div class="ch-plot"><i class="ch-grid" style="top:100.000%"></i><i class="ch-grid" style="top:75.000%"></i><i class="ch-grid" style="top:50.000%"></i><i class="ch-grid" style="top:25.000%"></i><i class="ch-grid" style="top:0.000%"></i><svg class="ch-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon class="area" points="3.125,100 3.125,0.000 9.375,0.000 15.625,0.000 21.875,67.000 28.125,0.000 34.375,100.000 40.625,0.000 46.875,0.000 53.125,25.000 59.375,33.000 65.625,25.000 71.875,0.000 78.125,100.000 84.375,0.000 90.625,0.000 96.875,100.000 96.875,100"/><polyline class="line" points="3.125,0.000 9.375,0.000 15.625,0.000 21.875,67.000 28.125,0.000 34.375,100.000 40.625,0.000 46.875,0.000 53.125,25.000 59.375,33.000 65.625,25.000 71.875,0.000 78.125,100.000 84.375,0.000 90.625,0.000 96.875,100.000"/></svg><i class="ch-dot" style="left:3.125%;top:0.000%" title="09/18：100%"></i><i class="ch-dot" style="left:9.375%;top:0.000%" title="09/20：100%"></i><i class="ch-dot" style="left:15.625%;top:0.000%" title="09/21：100%"></i><i class="ch-dot" style="left:21.875%;top:67.000%" title="09/22：33%"></i><i class="ch-dot" style="left:28.125%;top:0.000%" title="09/24：100%"></i><i class="ch-dot" style="left:34.375%;top:100.000%" title="09/25：0%"></i><i class="ch-dot" style="left:40.625%;top:0.000%" title="09/26：100%"></i><i class="ch-dot" style="left:46.875%;top:0.000%" title="09/28：100%"></i><i class="ch-dot" style="left:53.125%;top:25.000%" title="09/29：75%"></i><i class="ch-dot" style="left:59.375%;top:33.000%" title="09/30：67%"></i><i class="ch-dot" style="left:65.625%;top:25.000%" title="10/01：75%"></i><i class="ch-dot" style="left:71.875%;top:0.000%" title="10/02：100%"></i><i class="ch-dot" style="left:78.125%;top:100.000%" title="10/03：0%"></i><i class="ch-dot" style="left:84.375%;top:0.000%" title="10/04：100%"></i><i class="ch-dot" style="left:90.625%;top:0.000%" title="10/05：100%"></i><i class="ch-dot" style="left:96.875%;top:100.000%" title="10/06：0%"></i></div><div class="ch-x"><span class="ch-xtick" style="left:3.125%">09/18</span><span class="ch-xtick" style="left:21.875%">09/22</span><span class="ch-xtick" style="left:40.625%">09/26</span><span class="ch-xtick" style="left:59.375%">09/30</span><span class="ch-xtick" style="left:78.125%">10/03</span><span class="ch-xtick" style="left:96.875%">10/06</span></div></div></section></div><div class="grid"><section class="panel"><h2><span class="section-index">04</span>消息类型</h2><h3>消息量<span class="hint">红色 = 三成以上没人响应</span></h3><div class="pops"><div class="pop pop--warning" title="其他：14 条 · 未响应 2"><span class="pop-label">其他</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">14 条 · 未响应 2</span></div><div class="pop pop--warning" title="账号与交易：9 条 · 未响应 1"><span class="pop-label">账号与交易</span><span class="pop-track"><span class="pop-stem" style="width:64.3%"></span><span class="pop-dot" style="left:64.3%"></span></span><span class="pop-value">9 条 · 未响应 1</span></div><div class="pop pop--warning" title="活动与竞赛：9 条 · 未响应 1"><span class="pop-label">活动与竞赛</span><span class="pop-track"><span class="pop-stem" style="width:64.3%"></span><span class="pop-dot" style="left:64.3%"></span></span><span class="pop-value">9 条 · 未响应 1</span></div><div class="pop pop--warning" title="行程与会务：7 条 · 未响应 1"><span class="pop-label">行程与会务</span><span class="pop-track"><span class="pop-stem" style="width:50.0%"></span><span class="pop-dot" style="left:50.0%"></span></span><span class="pop-value">7 条 · 未响应 1</span></div><div class="pop pop--critical" title="物料与内容：5 条 · 未响应 2"><span class="pop-label">物料与内容</span><span class="pop-track"><span class="pop-stem" style="width:35.7%"></span><span class="pop-dot" style="left:35.7%"></span></span><span class="pop-value">5 条 · 未响应 2</span></div><div class="pop pop--critical" title="返佣与数据：5 条 · 未响应 3"><span class="pop-label">返佣与数据</span><span class="pop-track"><span class="pop-stem" style="width:35.7%"></span><span class="pop-dot" style="left:35.7%"></span></span><span class="pop-value">5 条 · 未响应 3</span></div><div class="pop" title="寒暄与确认：1 条"><span class="pop-label">寒暄与确认</span><span class="pop-track"><span class="pop-stem" style="width:7.1%"></span><span class="pop-dot" style="left:7.1%"></span></span><span class="pop-value">1 条</span></div></div><h3>各类型的被响应中位</h3><div class="pops"><div class="pop pop--ok" title="其他：6.2 分钟"><span class="pop-label">其他</span><span class="pop-track"><span class="pop-stem" style="width:16.4%"></span><span class="pop-dot" style="left:16.4%"></span></span><span class="pop-value">6.2 分钟</span></div><div class="pop pop--ok" title="账号与交易：2.1 分钟"><span class="pop-label">账号与交易</span><span class="pop-track"><span class="pop-stem" style="width:5.6%"></span><span class="pop-dot" style="left:5.6%"></span></span><span class="pop-value">2.1 分钟</span></div><div class="pop pop--ok" title="活动与竞赛：15 分钟"><span class="pop-label">活动与竞赛</span><span class="pop-track"><span class="pop-stem" style="width:40.1%"></span><span class="pop-dot" style="left:40.1%"></span></span><span class="pop-value">15 分钟</span></div><div class="pop pop--warning" title="行程与会务：38 分钟"><span class="pop-label">行程与会务</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">38 分钟</span></div><div class="pop pop--ok" title="物料与内容：1.5 分钟"><span class="pop-label">物料与内容</span><span class="pop-track"><span class="pop-stem" style="width:4.0%"></span><span class="pop-dot" style="left:4.0%"></span></span><span class="pop-value">1.5 分钟</span></div><div class="pop pop--ok" title="返佣与数据：3.0 分钟"><span class="pop-label">返佣与数据</span><span class="pop-track"><span class="pop-stem" style="width:8.0%"></span><span class="pop-dot" style="left:8.0%"></span></span><span class="pop-value">3.0 分钟</span></div><div class="pop pop--ok" title="寒暄与确认：6.6 分钟"><span class="pop-label">寒暄与确认</span><span class="pop-track"><span class="pop-stem" style="width:17.5%"></span><span class="pop-dot" style="left:17.5%"></span></span><span class="pop-value">6.6 分钟</span></div></div><p class="note">按正文关键词现场归类，一条消息只落一类。个别太短太口语的会归到「其他」。</p></section><section class="panel"><h2><span class="section-index">05</span>KOL 等级</h2><h3>各等级的提问量<span class="hint">红色 = 三成以上没人响应</span></h3><div class="pops"><div class="pop pop--warning" title="S 级：30 条 · 4 位 · 未响应 4"><span class="pop-label">S 级</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">30 条 · 4 位 · 未响应 4</span></div><div class="pop pop--warning" title="A 级：13 条 · 4 位 · 未响应 3"><span class="pop-label">A 级</span><span class="pop-track"><span class="pop-stem" style="width:43.3%"></span><span class="pop-dot" style="left:43.3%"></span></span><span class="pop-value">13 条 · 4 位 · 未响应 3</span></div><div class="pop pop--critical" title="B 级：7 条 · 3 位 · 未响应 3"><span class="pop-label">B 级</span><span class="pop-track"><span class="pop-stem" style="width:23.3%"></span><span class="pop-dot" style="left:23.3%"></span></span><span class="pop-value">7 条 · 3 位 · 未响应 3</span></div></div><h3>各等级的被响应中位</h3><div class="pops"><div class="pop pop--ok" title="S 级：9.5 分钟　30 分钟内 73%"><span class="pop-label">S 级</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">9.5 分钟　30 分钟内 73%</span></div><div class="pop pop--ok" title="A 级：6.2 分钟　30 分钟内 70%"><span class="pop-label">A 级</span><span class="pop-track"><span class="pop-stem" style="width:65.3%"></span><span class="pop-dot" style="left:65.3%"></span></span><span class="pop-value">6.2 分钟　30 分钟内 70%</span></div><div class="pop pop--ok" title="B 级：3.1 分钟　30 分钟内 100%"><span class="pop-label">B 级</span><span class="pop-track"><span class="pop-stem" style="width:32.6%"></span><span class="pop-dot" style="left:32.6%"></span></span><span class="pop-value">3.1 分钟　30 分钟内 100%</span></div></div><p class="note">等级来自群组对接关系表，按群名匹配。S 级没有明显快过 B 级时，说明响应没有按等级排优先级。</p></section></div><div class="grid"><section class="panel"><h2><span class="section-index">06</span>运营效率<span class="kicker">前 6</span></h2><h3>回复条数</h3><div class="pops"><div class="pop" title="@OP-ICO-Safia：12 条"><span class="pop-label">@OP-ICO-Safia</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">12 条</span></div><div class="pop" title="Seren Wang：5 条"><span class="pop-label">Seren Wang</span><span class="pop-track"><span class="pop-stem" style="width:41.7%"></span><span class="pop-dot" style="left:41.7%"></span></span><span class="pop-value">5 条</span></div><div class="pop" title="OP-ICO-Aiden：4 条"><span class="pop-label">OP-ICO-Aiden</span><span class="pop-track"><span class="pop-stem" style="width:33.3%"></span><span class="pop-dot" style="left:33.3%"></span></span><span class="pop-value">4 条</span></div><div class="pop" title="@OP-ICO-LexieL：3 条"><span class="pop-label">@OP-ICO-LexieL</span><span class="pop-track"><span class="pop-stem" style="width:25.0%"></span><span class="pop-dot" style="left:25.0%"></span></span><span class="pop-value">3 条</span></div><div class="pop" title="@OP-ICO-Bella：3 条"><span class="pop-label">@OP-ICO-Bella</span><span class="pop-track"><span class="pop-stem" style="width:25.0%"></span><span class="pop-dot" style="left:25.0%"></span></span><span class="pop-value">3 条</span></div><div class="pop" title="OP-ICO-Shirley：2 条"><span class="pop-label">OP-ICO-Shirley</span><span class="pop-track"><span class="pop-stem" style="width:16.7%"></span><span class="pop-dot" style="left:16.7%"></span></span><span class="pop-value">2 条</span></div></div><h3>运营跟进中位<span class="hint">提问 → 运营回复</span></h3><div class="pops"><div class="pop pop--ok" title="@OP-ICO-Safia：2.9 分钟"><span class="pop-label">@OP-ICO-Safia</span><span class="pop-track"><span class="pop-stem" style="width:1.0%"></span><span class="pop-dot" style="left:1.0%"></span></span><span class="pop-value">2.9 分钟</span></div><div class="pop pop--warning" title="Seren Wang：49 分钟"><span class="pop-label">Seren Wang</span><span class="pop-track"><span class="pop-stem" style="width:7.4%"></span><span class="pop-dot" style="left:7.4%"></span></span><span class="pop-value">49 分钟</span></div><div class="pop" title="OP-ICO-Aiden：8.4 分钟（仅 4 条）"><span class="pop-label">OP-ICO-Aiden</span><span class="pop-track"><span class="pop-stem" style="width:1.3%"></span><span class="pop-dot" style="left:1.3%"></span></span><span class="pop-value">8.4 分钟（仅 4 条）</span></div><div class="pop" title="@OP-ICO-LexieL：23 分钟（仅 3 条）"><span class="pop-label">@OP-ICO-LexieL</span><span class="pop-track"><span class="pop-stem" style="width:3.5%"></span><span class="pop-dot" style="left:3.5%"></span></span><span class="pop-value">23 分钟（仅 3 条）</span></div><div class="pop" title="@OP-ICO-Bella：11.0 小时（仅 3 条）"><span class="pop-label">@OP-ICO-Bella</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">11.0 小时（仅 3 条）</span></div><div class="pop" title="OP-ICO-Shirley：9.8 分钟（仅 2 条）"><span class="pop-label">OP-ICO-Shirley</span><span class="pop-track"><span class="pop-stem" style="width:1.5%"></span><span class="pop-dot" style="left:1.5%"></span></span><span class="pop-value">9.8 分钟（仅 2 条）</span></div></div><p class="note">不足 5 条的样本不配色，只作参考。客服已接住、运营次日给最终答复的情况也计在这里，数值高不等于响应慢。</p></section><section class="panel"><h2><span class="section-index">07</span>群组响应率<span class="kicker">前 6</span></h2><div class="pops"><div class="pop pop--warning" title="PETER &amp; Vera, Aaksh…：83% · 18 条"><span class="pop-label">PETER &amp; Vera, Aaksh…</span><span class="pop-track"><span class="pop-stem" style="width:83.0%"></span><span class="pop-dot" style="left:83.0%"></span></span><span class="pop-value">83% · 18 条</span></div><div class="pop pop--ok" title="Crypto Rover x WEEX…：100% · 9 条"><span class="pop-label">Crypto Rover x WEEX…</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">100% · 9 条</span></div><div class="pop pop--ok" title="James Crypto Guru x…：100% · 6 条"><span class="pop-label">James Crypto Guru x…</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">100% · 6 条</span></div><div class="pop pop--warning" title="Conor x WEEX：50% · 4 条"><span class="pop-label">Conor x WEEX</span><span class="pop-track"><span class="pop-stem" style="width:50.0%"></span><span class="pop-dot" style="left:50.0%"></span></span><span class="pop-value">50% · 4 条</span></div><div class="pop pop--ok" title="Moon Weekend Show x…：100% · 4 条"><span class="pop-label">Moon Weekend Show x…</span><span class="pop-track"><span class="pop-stem" style="width:100.0%"></span><span class="pop-dot" style="left:100.0%"></span></span><span class="pop-value">100% · 4 条</span></div><div class="pop pop--warning" title="TMG Trades - WEEX：67% · 3 条"><span class="pop-label">TMG Trades - WEEX</span><span class="pop-track"><span class="pop-stem" style="width:67.0%"></span><span class="pop-dot" style="left:67.0%"></span></span><span class="pop-value">67% · 3 条</span></div></div><p class="note">响应率低的群优先看是不是语言不通，而不是先催运营。</p></section></div><div class="grid grid--one"><section class="panel panel--wide"><h2><span class="section-index">08</span>KOL 响应情况<span class="kicker">前 8 · 共 11 位</span></h2><div class="table-wrap"><table><thead><tr><th>KOL</th><th>等级</th><th>问题</th><th>无人响应</th><th>被响应中位</th><th>30 分钟内被响应</th><th>最近一次</th></tr></thead><tbody><tr><td><strong>Aakshaay</strong><span class="muted"> @aakshaay35</span></td><td><span class="grade grade--S">S</span></td><td>18</td><td><span class="chip chip--critical">3</span></td><td>14 分钟</td><td>73%</td><td class="muted">10-06 13:20</td></tr><tr><td><strong>Rover</strong><span class="muted"> @cryptoroveryt</span></td><td><span class="grade grade--S">S</span></td><td>7</td><td><span class="muted">0</span></td><td>2.9 分钟</td><td>71%</td><td class="muted">10-02 16:23</td></tr><tr><td><strong>TMG</strong><span class="muted"> @thatmartiniguy</span></td><td><span class="grade grade--S">S</span></td><td>3</td><td><span class="chip chip--critical">1</span></td><td>8.3 小时</td><td>50%</td><td class="muted">09-30 15:08</td></tr><tr><td><strong>Crypto Goos</strong><span class="muted"> @crypto_goos</span></td><td><span class="grade grade--S">S</span></td><td>2</td><td><span class="muted">0</span></td><td>9.8 分钟</td><td>100%</td><td class="muted">09-24 12:19</td></tr><tr><td><strong>VIP Trader</strong><span class="muted"> @viptraderofc</span></td><td><span class="grade grade--A">A</span></td><td>5</td><td><span class="muted">0</span></td><td>3.8 分钟</td><td>80%</td><td class="muted">09-30 11:19</td></tr><tr><td><strong>Conor Kenny</strong><span class="muted"> @conorfkenny</span></td><td><span class="grade grade--A">A</span></td><td>4</td><td><span class="chip chip--critical">2</span></td><td>25 分钟</td><td>50%</td><td class="muted">10-03 19:15</td></tr><tr><td><strong>MRA</strong><span class="muted"> @realmra</span></td><td><span class="grade grade--A">A</span></td><td>3</td><td><span class="chip chip--critical">1</span></td><td>5.1 小时</td><td>50%</td><td class="muted">10-01 19:28</td></tr><tr><td><strong>Matthew</strong><span class="muted"> @Mat_Ba</span></td><td><span class="grade grade--A">A</span></td><td>1</td><td><span class="muted">0</span></td><td>5.8 分钟</td><td>100%</td><td class="muted">09-24 15:59</td></tr></tbody></table></div><p class="note">全员口径：运营、BD、客服任何一方接住都算响应。只看运营履职请用「运营效率」面板。排序先按等级，再按提问数。</p></section></div>
+<details class="spec"><summary>这些数字是怎么算出来的<span class="hint">点开看</span></summary><div class="spec-body"><h4>先说三件事：哪些数据被算进来了</h4><table class="sp"><tr><td class="sp-k">只看最近一段时间</td><td>当前选的是「按天」，所以只统计<b>最近 21 天</b>的消息。按 KOL 发问的时间算，不是按回复的时间算——一条 25 天前问、昨天才回的消息，不会出现在这里。</td></tr><tr><td class="sp-k">测试群不算</td><td>人员名册里关掉了监控的群（目前是那个 bot 测试群），一条都不计入。以后再建测试群，只要在名册里把监控关掉，就会自动排除，不用改程序。</td></tr><tr><td class="sp-k">当前是「可信样本」</td><td>已经把一类不可靠的记录排除掉了。这类记录的毛病是：系统会把今天的一句回复，错当成是在回答几个月前的老问题，于是算出几千分钟的等待时间。右上角可以切换两种口径对比着看。</td></tr></table><h4>最重要的：两个「时长」不是一回事</h4><table class="sp"><tr><td class="sp-k">被响应时长<br><span class="muted">页面上的主要指标</span></td><td>从 <b>KOL 发出消息</b>，到 <b>我们这边任何一个人</b>（运营、BD、客服都算）第一次开口回他，中间隔了多久。<br>这个数字代表 <b>KOL 的实际感受</b>——他发完消息，多久有人理他。</td></tr><tr><td class="sp-k">运营跟进时长<br><span class="muted">只在「运营效率」那一栏用</span></td><td>从 KOL 发出消息，到 <b>运营</b>回复，中间隔了多久。客服已经接住、但运营还没出面的那段时间，也算在里面。<br>这个数字代表 <b>运营有没有及时跟进</b>，不代表 KOL 等了多久。</td></tr><tr><td class="sp-k">差别有多大</td><td>举个真实例子：9 月 21 日晚上 21 点 18 分 05 秒，Rover 提了个问题。客服 Jewel <b>36 秒后</b>就回了他——所以「被响应时长」是 0.6 分钟。但运营是第二天上午 9 点 52 分才给的最终答复——所以「运营跟进时长」是 754 分钟，也就是 12 个半小时。<br><b>同一件事，两个数字差了一千多倍，但两个都没算错</b>，只是在回答不同的问题。</td></tr></table><h4>顶上那一排数字</h4><table class="sp"><tr><td class="sp-k">问题总数</td><td>这段时间里，KOL 一共发了多少条需要我们回应的消息。</td></tr><tr><td class="sp-k">被响应中位</td><td>把所有消息按「等了多久才有人理」从快到慢排队，站在<b>正中间</b>那条等了多久。<br>用中间值而不是平均值，是因为个别拖很久的会把平均值整个带偏——十条里九条一分钟内回了、一条等了十小时，平均值会变成一小时，那没有意义。</td></tr><tr><td class="sp-k">最慢的 10%</td><td>排到第 90% 位置的那条等了多久，也就是说<b>每十条消息里，有一条比这更久</b>。<br>它和中位数一起看才完整：中位数告诉你「通常多快」，这个告诉你「最差能有多差」。</td></tr><tr><td class="sp-k">30 分钟内被响应</td><td>在<b>有人回应过的</b>消息里，有多大比例是 30 分钟内被接住的。<br>注意分母：完全没人回的那些<b>不算在分母里</b>。</td></tr><tr><td class="sp-k">运营跟进中位</td><td>只看运营回复的那部分，从提问到运营开口的中间值。后面那个百分比同理，分母是「运营回复过的消息」。</td></tr><tr><td class="sp-k">响应率</td><td>有人回应过的消息，占全部消息的比例。分母是<b>全部</b>消息。<br>「无人响应」= 运营没回、客服也没回、BD 也没回。</td></tr><tr><td class="sp-k">触发预警</td><td>这段时间里，系统一共发出多少次超时提醒。后面那个「其中几条之后被回复」是说：提醒发出去以后，有多少条真的被跟进了。</td></tr></table><p class="note">⚠️ 上面这几个百分比的<b>分母是不一样的</b>（有的是全部消息，有的只是有人回过的消息），所以不要互相加减，也不要拿其中两个去倒推第三个。</p><h4>中间几块图</h4><table class="sp"><tr><td class="sp-k">响应构成（那个圆环）</td><td>把全部消息分成三份：运营回了的、只有客服或 BD 回了的、一个人都没回的。三份互不重叠，加起来正好是问题总数。<br>中间那份「仅客服/BD 回复」的意思是——客服当场接住了，但运营一直没出面跟进。</td></tr><tr><td class="sp-k">被响应时长分布</td><td>把消息按等待时长分成六档，看各档各有多少条。<br><b>完全没人回的消息不进这张图</b>，因为它们没有「等了多久」这个数。<br>分档是左闭右开：「1-5分」指的是等了 1 分钟到 5 分钟之间（不含 5 分钟整）。</td></tr><tr><td class="sp-k">趋势</td><td>上面那张是每天（或每周、每月）有多少条消息，当期只要有一条没人回，整根柱子就标红。<br>下面那张是 30 分钟内被接住的比例，刻度固定 0 到 100%，所以不同时间段的高矮可以直接比。<br>按天只画最近 21 根，再多页面就太长了。</td></tr><tr><td class="sp-k">消息类型</td><td><b>数据库里原本没有这个分类</b>，是看板按消息正文里的关键词现场归的类。<br>判断顺序是固定的，先命中哪类就归哪类，一条消息只会进一个类：先看是不是纯客套（thanks、ok、收到这种，而且整句话很短）→ 再看账号交易（冻结、提现、下不了单…）→ 返佣数据（佣金、邀请、排行榜…）→ 活动竞赛（campaign、比赛、赠品…）→ 行程会务（航班、酒店、签证、采访…）→ 物料内容（banner、视频、截图、链接…）→ 带 UID 或一长串数字的也归账号交易 → 都不沾边的进「其他」。<br>目前「其他」占三成多，因为很多消息太短太口语（比如「can you help me?」），光看关键词认不出来。</td></tr><tr><td class="sp-k">KOL 等级</td><td>来自你给的那份群组对接关系表。<b>先按群名去对</b>，群名对不上才按 KOL 的 TG 号对。<br>对群名时做了容错：忽略空格、不分大小写，而且只要开头对得上就算。因为数据库里的群名常常后面带一串群号，而对接表里只写到群名为止。</td></tr><tr><td class="sp-k">运营效率</td><td><b>只统计运营真的回复过的消息</b>，用的是「运营跟进时长」。<br>名字来自人员名册，通过「谁第一个回复的」这个记录关联过去。<br>样本不足 5 条的<b>不上色</b>，并在数字后面标出条数——用四五条数据给人贴「慢」的标签，统计上站不住。<br><b>这一栏最容易看错</b>：客服已经接住、运营第二天给最终答复的情况也算在这里，所以数字大不等于这个人反应慢。</td></tr><tr><td class="sp-k">群组响应率</td><td>这个群里有人回应过的消息占比。低于 50% 标红，低于 90% 标黄。<br>某个群的响应率特别低，先看是不是语言不通（比如俄语、波斯语群没人能回），而不是先去催运营。</td></tr><tr><td class="sp-k">KOL 响应情况</td><td><b>全员口径</b>——运营、BD、客服，任何一方接住都算响应，和「运营效率」那一栏的口径不一样。<br>按 KOL 的名字归并（不按 TG 号，因为同一个人的 TG 用户名在消息里大小写可能不一致）。排序是先按等级高低，再按提问数量。</td></tr></table><h4>这些数现在还有哪些毛病</h4><table class="sp"><tr><td class="sp-k">客套话也被当成问题在计时</td><td>像「Thanks Seren」「Yes perfect」这种，根本不需要回，但系统把它当成一个待回复的问题，一直等到下次有人说话才算「回复了」，于是算出一两千分钟。<br>过滤这类消息的程序<b>已经写好但还没部署</b>，部署后这类不再计入。</td></tr><tr><td class="sp-k">晚上睡觉的时间也在计时</td><td>KOL 半夜 23 点 40 分发消息，第二天上午 10 点 41 分有人回，系统记 661 分钟——其中绝大部分是在睡觉。<br>要不要把夜里的时间扣掉，取决于对外承诺的是「随时响应」还是「工作时间内响应」，这是管理层要定的事，定了才好改。</td></tr><tr><td class="sp-k">「没人回」不一定真的没人管</td><td>系统要能<b>认出</b>哪条消息是在回哪条提问，才算「回复了」。认不出来的时候，哪怕群里确实有人回了，也会被记成「没人回」。<br>实测：103 条消息里系统认定回复了 66 条，而「提问之后群里确实有我们的人说过话」的有 90 条。差的那部分大多是客服回了但运营没跟进，这部分现在已经被「被响应」口径捞回来了。</td></tr><tr><td class="sp-k">KOL 等级是写死在程序里的</td><td>人员或群组有变动时，需要手工更新程序里的等级对照表。<br>如果变动比较频繁，建议把等级做成群组表里的一个字段，从多维表格同步过来，就能自动更新了。</td></tr></table><p class="note">图上每一根条和柱子，鼠标放上去都会显示原始数值，不用靠目测。</p></div></details>
+<footer>可信样本：已排除一类会把回复错配到旧问题的记录　·　已排除未开启监控的群（测试群）</footer>
+</div></body></html>
